@@ -1,40 +1,79 @@
 import 'dart:io';
 
-main() async {
+main() {
 
-  var server = await HttpServer.bind(InternetAddress.ANY_IP_V4, 8080);
-  print("Serving at ${server.address.host}:${server.port}");
+  new Server(80);
 
-  await for (var request in server) {
-    var response = request.response,
-        uri      = request.uri;
+}
 
-    if(request.method == 'GET') {
+class Server {
 
-      if(uri.hasQuery) {
+  HttpServer server;
 
-        if(uri.queryParameters['mac'] != null) {
+  /**
+   * @contructor
+   * Start bind of the Http Server
+   */
+  Server(port) {
 
-          var file = new File('${uri.queryParameters['mac']}.log');
-          var sink = file.openWrite(mode: FileMode.APPEND);
+    this.start(port);
 
-          var msg = '[ MAC: ${uri.queryParameters['mac']} |';
-          msg += ' Date: ${new DateTime.now()} |';
-          msg += uri.queryParameters['addr'] == null ? '' : ' Address: ${uri.queryParameters['addr']} |';
-          msg += uri.queryParameters['port'] == null ? '' : ' SIP Port${uri.queryParameters['port']}';
-          msg += ' ]\n';
+  }
 
-          sink.write(msg);
+  void start(int port) async {
 
-          sink.close();
-        }
+    server = await HttpServer.bind(InternetAddress.ANY_IP_V4, port);
 
+    await for (var request in server) {
+
+      if(request.method == 'GET') this.handleRequest(request);
+      else {
+        request.response
+          ..statusCode = HttpStatus.METHOD_NOT_ALLOWED
+          ..close();
       }
 
+    }
+  }
 
-    } else response.statusCode = HttpStatus.METHOD_NOT_ALLOWED;
+  /**
+   * Handling the request with the GET http method
+   */
+  void handleRequest(HttpRequest request) {
+
+    HttpResponse response = request.response;
+    Uri          uri      = request.uri;
+
+    if(uri.hasQuery) {
+      /**
+       * Get query here
+       */
+
+      this.fileSystem(uri);
+
+    }
 
     response.close();
 
   }
+
+  /**
+   * File system for data storage
+   */
+  void fileSystem(Uri uri) {
+
+    // Creating or obtaining a file
+    var file = new File('${uri.queryParameters['mac']}.log');
+
+    // Accessing write object
+    var sink = file.openWrite(mode: FileMode.APPEND);
+    String msg = '=> Adress: ${uri.queryParameters['addr']} - SIP Port: ${uri.queryParameters['port']}\n';
+
+    // Inserting String for the file
+    sink.write(msg);
+
+    sink.close();
+
+  }
+
 }
